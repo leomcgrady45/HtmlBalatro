@@ -1,0 +1,98 @@
+:root {
+  --bg: #10131c;
+  --panel: #1a2233;
+  --text: #f0f3ff;
+  --muted: #9aa7d0;
+  --accent: #67d3ff;
+  --good: #7dfa93;
+  --warn: #ffd166;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: "Segoe UI", "PingFang SC", sans-serif;
+  background: radial-gradient(circle at top, #1b2a4a, var(--bg));
+  color: var(--text);
+}
+.container {
+  width: min(1080px, 96vw);
+  margin: 24px auto 40px;
+}
+header h1 { margin-bottom: 8px; }
+header p { color: var(--muted); margin-top: 0; }
+
+.status-panel, .controls, .log-wrap, section {
+  background: rgba(20, 28, 42, 0.88);
+  border: 1px solid #2b3654;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-top: 14px;
+}
+
+.status-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+button {
+  background: #2a385a;
+  color: var(--text);
+  border: 1px solid #40517d;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  margin: 4px;
+}
+button:hover { border-color: var(--accent); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+
+.card-row, .joker-row, .shop {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.card, .joker-card, .shop-card {
+  min-width: 86px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 2px solid #475270;
+  background: #f8fbff;
+  color: #0e1628;
+  text-align: center;
+  user-select: none;
+}
+.card.red { color: #c42424; }
+.card.selected { outline: 3px solid var(--accent); }
+
+.joker-card, .shop-card {
+  background: #2c1f48;
+  color: #f8ecff;
+  border-color: #8768cf;
+  min-width: 210px;
+}
+.joker-card small, .shop-card small {
+  display: block;
+  color: #ccb8f1;
+  margin-top: 6px;
+}
+.shop-card button {
+  margin-top: 8px;
+  width: 100%;
+}
+
+.deck-info { display: flex; gap: 18px; color: var(--muted); }
+
+#log {
+  background: #0d1220;
+  border-radius: 8px;
+  border: 1px solid #2b3654;
+  min-height: 120px;
+  max-height: 280px;
+  overflow: auto;
+  color: #bbfcd6;
+  padding: 10px;
+}
