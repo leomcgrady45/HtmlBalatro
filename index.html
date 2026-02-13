@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HTML Balatro 小丑牌</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="container">
+    <header>
+      <h1>🎴 HTML Balatro（简化版）</h1>
+      <p>目标：在每个盲注回合中达到分数需求，利用小丑牌提升倍率与筹码。</p>
+    </header>
+
+    <section class="status-panel">
+      <div><strong>回合：</strong><span id="round">1</span></div>
+      <div><strong>盲注需求：</strong><span id="targetScore">400</span></div>
+      <div><strong>本回合得分：</strong><span id="roundScore">0</span></div>
+      <div><strong>总金币：</strong><span id="gold">8</span></div>
+      <div><strong>剩余出牌：</strong><span id="playsLeft">4</span></div>
+      <div><strong>剩余弃牌：</strong><span id="discardsLeft">3</span></div>
+    </section>
+
+    <section class="controls">
+      <button id="playBtn">打出选中牌</button>
+      <button id="discardBtn">弃掉选中牌</button>
+      <button id="sortRankBtn">手牌按点数排序</button>
+      <button id="sortSuitBtn">手牌按花色排序</button>
+      <button id="showPayoutBtn">查看牌型倍率</button>
+      <button id="showStatsBtn">查询剩余牌统计</button>
+    </section>
+
+    <section>
+      <h2>手牌（点击选择，最多5张）</h2>
+      <div id="hand" class="card-row"></div>
+    </section>
+
+    <section>
+      <h2>牌堆信息</h2>
+      <div class="deck-info">
+        <span>抽牌堆：<strong id="deckCount">52</strong></span>
+        <span>弃牌堆：<strong id="discardPileCount">0</strong></span>
+      </div>
+    </section>
+
+    <section id="payoutPanel" class="info-panel hidden">
+      <h2>牌型倍率速查（基础）</h2>
+      <pre id="payoutText"></pre>
+    </section>
+
+    <section id="statsPanel" class="info-panel hidden">
+      <h2>剩余牌统计</h2>
+      <pre id="statsText"></pre>
+    </section>
+
+    <section>
+      <h2>小丑牌槽位（最多3张）</h2>
+      <div id="jokers" class="joker-row"></div>
+      <div id="shop" class="shop"></div>
+      <button id="refreshShopBtn">刷新商店（-1金币）</button>
+    </section>
+
+    <section class="log-wrap">
+      <h2>结算日志</h2>
+      <pre id="log"></pre>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
