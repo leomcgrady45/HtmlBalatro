@@ -1,0 +1,314 @@
+const SUITS = ["♠", "♥", "♦", "♣"];
+const SUIT_ORDER = { "♠": 0, "♥": 1, "♦": 2, "♣": 3 };
+const SUIT_CLASS = { "♠": "spade", "♥": "heart", "♦": "diamond", "♣": "club" };
+const RANKS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
+const RANK_VALUE = Object.fromEntries(RANKS.map((r, i) => [r, i + 2]));
+const PAYOUT_TABLE = [
+  ["皇家同花顺", 320, 8], ["同花顺", 260, 6], ["四条", 230, 5], ["葫芦", 180, 4],
+  ["同花", 150, 3.5], ["顺子", 140, 3.2], ["三条", 120, 2.6], ["两对", 100, 2.2],
+  ["对子", 80, 1.9], ["高牌", "40 + 最高点数*4", 1],
+];
+
+const JOKER_POOL = [
+  { name: "加筹小丑", desc: "+60基础筹码", cost: 4, apply: (ctx) => (ctx.chips += 60) },
+  { name: "倍率小丑", desc: "最终倍率 +1", cost: 5, apply: (ctx) => (ctx.mult += 1) },
+  { name: "同花小丑", desc: "打出同花时额外 x1.5 倍率", cost: 6, apply: (ctx) => ctx.isFlush && (ctx.mult *= 1.5) },
+  { name: "对子小丑", desc: "打出对子/两对/三条额外 +80筹码", cost: 5, apply: (ctx) => ctx.hasPairLike && (ctx.chips += 80) },
+  { name: "高牌专家", desc: "高牌 +120筹码", cost: 6, apply: (ctx) => ctx.handName === "高牌" && (ctx.chips += 120) },
+  { name: "连顺小丑", desc: "顺子时最终倍率 +2", cost: 6, apply: (ctx) => ctx.isStraight && (ctx.mult += 2) },
+];
+
+const state = {
+  round: 1, targetScore: 400, roundScore: 0, gold: 8, playsLeft: 4, discardsLeft: 3,
+  deck: [], hand: [], discardPile: [], selected: new Set(), jokers: [], shopOffers: [],
+};
+
+const $ = (id) => document.getElementById(id);
+const logEl = $("log");
+
+function createDeck() {
+  const deck = [];
+  for (const suit of SUITS) {
+    for (const rank of RANKS) {
+      deck.push({ suit, rank, id: `${rank}${suit}-${Math.random().toString(36).slice(2, 8)}` });
+    }
+  }
+  return shuffle(deck);
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function init() {
+  state.deck = createDeck();
+  drawToHand(8);
+  rollShop();
+  bindEvents();
+  render();
+  renderPayoutTable();
+  log("游戏开始！达成盲注将自动进入下一回合。");
+}
+
+function bindEvents() {
+  $("playBtn").onclick = playSelected;
+  $("discardBtn").onclick = discardSelected;
+  $("sortRankBtn").onclick = () => {
+    state.hand.sort((a, b) => RANK_VALUE[b.rank] - RANK_VALUE[a.rank] || SUIT_ORDER[a.suit] - SUIT_ORDER[b.suit]);
+    renderHand();
+  };
+  $("sortSuitBtn").onclick = () => {
+    state.hand.sort((a, b) => SUIT_ORDER[a.suit] - SUIT_ORDER[b.suit] || RANK_VALUE[b.rank] - RANK_VALUE[a.rank]);
+    renderHand();
+  };
+  $("showPayoutBtn").onclick = () => togglePanel("payoutPanel");
+  $("showStatsBtn").onclick = () => {
+    renderStats();
+    togglePanel("statsPanel");
+  };
+  $("refreshShopBtn").onclick = () => {
+    if (state.gold < 1) return log("金币不足，无法刷新商店。");
+    state.gold -= 1;
+    rollShop();
+    render();
+    log("商店已刷新（-1金币）。");
+  };
+}
+
+function togglePanel(id) {
+  const panel = $(id);
+  panel.classList.toggle("hidden");
+}
+
+function drawToHand(count) {
+  refillDeckIfNeeded();
+  for (let i = 0; i < count && state.deck.length && state.hand.length < 8; i++) {
+    state.hand.push(state.deck.pop());
+    refillDeckIfNeeded();
+  }
+}
+
+function refillDeckIfNeeded() {
+  if (state.deck.length > 0 || state.discardPile.length === 0) return;
+  state.deck = shuffle(state.discardPile);
+  state.discardPile = [];
+  log("抽牌堆耗尽，已将弃牌堆洗回抽牌堆。");
+}
+
+function toggleSelect(cardId) {
+  if (state.selected.has(cardId)) state.selected.delete(cardId);
+  else {
+    if (state.selected.size >= 5) return;
+    state.selected.add(cardId);
+  }
+  renderHand();
+}
+
+function playSelected() {
+  const cards = state.hand.filter((c) => state.selected.has(c.id));
+  if (!cards.length) return log("请先选择要打出的牌。\n");
+  if (state.playsLeft <= 0) return log("本回合没有剩余出牌次数。\n");
+
+  const evalResult = evaluateHand(cards);
+  const context = { ...evalResult, chips: evalResult.baseChips, mult: evalResult.baseMult };
+  for (const joker of state.jokers) joker.apply(context);
+
+  const handScore = Math.floor(context.chips * context.mult);
+  state.roundScore += handScore;
+  state.playsLeft -= 1;
+
+  const cardIds = new Set(cards.map((c) => c.id));
+  state.hand = state.hand.filter((c) => !cardIds.has(c.id));
+  state.discardPile.push(...cards);
+  state.selected.clear();
+  drawToHand(8 - state.hand.length);
+
+  log(`🃏 ${evalResult.handName}：${context.chips} x ${context.mult.toFixed(2)} = ${handScore}。`);
+
+  if (state.roundScore >= state.targetScore) {
+    const reward = 4 + state.round;
+    state.gold += reward;
+    log(`✅ 达成盲注，奖励金币 ${reward}。自动进入下一回合...`);
+    advanceRound();
+  } else if (state.playsLeft === 0) {
+    log("❌ 出牌用尽且未达标，自动扣除2金币并重置本回合。\n");
+    state.gold = Math.max(0, state.gold - 2);
+    resetRound(false);
+  }
+
+  render();
+}
+
+function discardSelected() {
+  const cards = state.hand.filter((c) => state.selected.has(c.id));
+  if (!cards.length) return log("请先选择要弃掉的牌。\n");
+  if (state.discardsLeft <= 0) return log("本回合没有剩余弃牌次数。\n");
+
+  const ids = new Set(cards.map((c) => c.id));
+  state.hand = state.hand.filter((c) => !ids.has(c.id));
+  state.discardPile.push(...cards);
+  state.selected.clear();
+  state.discardsLeft -= 1;
+  drawToHand(8 - state.hand.length);
+
+  render();
+  log(`你弃掉了 ${cards.length} 张牌。`);
+}
+
+function evaluateHand(cards) {
+  const values = cards.map((c) => RANK_VALUE[c.rank]).sort((a, b) => a - b);
+  const suits = cards.map((c) => c.suit);
+  const countByValue = values.reduce((m, v) => ((m[v] = (m[v] || 0) + 1), m), {});
+  const groups = Object.values(countByValue).sort((a, b) => b - a);
+  const isFlush = suits.length >= 5 && suits.every((s) => s === suits[0]);
+  const isStraight = checkStraight([...new Set(values)]);
+
+  let handName = "高牌";
+  let baseChips = 40 + Math.max(...values, 10) * 4;
+  let baseMult = 1;
+
+  if (isStraight && isFlush && values.includes(14)) [handName, baseChips, baseMult] = ["皇家同花顺", 320, 8];
+  else if (isStraight && isFlush) [handName, baseChips, baseMult] = ["同花顺", 260, 6];
+  else if (groups[0] === 4) [handName, baseChips, baseMult] = ["四条", 230, 5];
+  else if (groups[0] === 3 && groups[1] >= 2) [handName, baseChips, baseMult] = ["葫芦", 180, 4];
+  else if (isFlush) [handName, baseChips, baseMult] = ["同花", 150, 3.5];
+  else if (isStraight) [handName, baseChips, baseMult] = ["顺子", 140, 3.2];
+  else if (groups[0] === 3) [handName, baseChips, baseMult] = ["三条", 120, 2.6];
+  else if (groups[0] === 2 && groups[1] === 2) [handName, baseChips, baseMult] = ["两对", 100, 2.2];
+  else if (groups[0] === 2) [handName, baseChips, baseMult] = ["对子", 80, 1.9];
+
+  return { handName, baseChips, baseMult, isFlush, isStraight, hasPairLike: ["对子", "两对", "三条"].includes(handName) };
+}
+
+function checkStraight(vals) {
+  if (vals.length < 5) return false;
+  for (let i = 0; i <= vals.length - 5; i++) {
+    const s = vals.slice(i, i + 5);
+    if (s[4] - s[0] === 4 && s.every((v, idx) => idx === 0 || v - s[idx - 1] === 1)) return true;
+  }
+  return [14, 2, 3, 4, 5].every((v) => vals.includes(v));
+}
+
+function rollShop() {
+  state.shopOffers = shuffle(JOKER_POOL).slice(0, 3);
+}
+
+function buyJoker(joker) {
+  if (state.jokers.length >= 3) return log("小丑牌槽位已满（最多3张）。");
+  if (state.gold < joker.cost) return log("金币不足，无法购买该小丑牌。");
+  state.gold -= joker.cost;
+  state.jokers.push(joker);
+  state.shopOffers = state.shopOffers.filter((j) => j !== joker);
+  render();
+  log(`购买小丑牌：${joker.name}（-${joker.cost}金币）`);
+}
+
+function advanceRound() {
+  state.round += 1;
+  state.targetScore = Math.floor(state.targetScore * 1.45);
+  resetRound(true);
+  rollShop();
+  log(`🎯 已自动进入第 ${state.round} 回合，新的盲注需求：${state.targetScore}`);
+}
+
+function resetRound(clearScore) {
+  state.playsLeft = 4;
+  state.discardsLeft = 3;
+  if (clearScore) state.roundScore = 0;
+  state.selected.clear();
+  drawToHand(8 - state.hand.length);
+}
+
+function renderPayoutTable() {
+  const text = ["牌型 | 基础筹码 | 基础倍率", "-------------------------"];
+  for (const [name, chips, mult] of PAYOUT_TABLE) text.push(`${name} | ${chips} | x${mult}`);
+  text.push("\n说明：小丑牌效果会在以上基础上继续叠加。\n");
+  $("payoutText").textContent = text.join("\n");
+}
+
+function renderStats() {
+  const zone = [...state.deck, ...state.discardPile];
+  const rankMap = Object.fromEntries(RANKS.map((r) => [r, 0]));
+  const suitMap = Object.fromEntries(SUITS.map((s) => [s, 0]));
+  for (const c of zone) {
+    rankMap[c.rank] += 1;
+    suitMap[c.suit] += 1;
+  }
+
+  const lines = [
+    `可抽剩余总牌（抽牌堆+弃牌堆）：${zone.length}`,
+    `抽牌堆：${state.deck.length}，弃牌堆：${state.discardPile.length}`,
+    "",
+    "按花色：",
+    ...SUITS.map((s) => `  ${s}: ${suitMap[s]}`),
+    "",
+    "按点数：",
+    ...RANKS.map((r) => `  ${r}: ${rankMap[r]}`),
+  ];
+  $("statsText").textContent = lines.join("\n");
+}
+
+function render() {
+  $("round").textContent = state.round;
+  $("targetScore").textContent = state.targetScore;
+  $("roundScore").textContent = state.roundScore;
+  $("gold").textContent = state.gold;
+  $("playsLeft").textContent = state.playsLeft;
+  $("discardsLeft").textContent = state.discardsLeft;
+  $("deckCount").textContent = state.deck.length;
+  $("discardPileCount").textContent = state.discardPile.length;
+  renderHand();
+  renderJokers();
+  renderShop();
+}
+
+function renderHand() {
+  const handEl = $("hand");
+  handEl.innerHTML = "";
+  for (const card of state.hand) {
+    const div = document.createElement("div");
+    div.className = `card ${SUIT_CLASS[card.suit]}`;
+    if (state.selected.has(card.id)) div.classList.add("selected");
+    div.innerHTML = `<div>${card.rank}</div><div>${card.suit}</div>`;
+    div.onclick = () => toggleSelect(card.id);
+    handEl.appendChild(div);
+  }
+}
+
+function renderJokers() {
+  const jokersEl = $("jokers");
+  jokersEl.innerHTML = "";
+  if (!state.jokers.length) jokersEl.innerHTML = "<em>暂无小丑牌</em>";
+  for (const joker of state.jokers) {
+    const div = document.createElement("div");
+    div.className = "joker-card";
+    div.innerHTML = `<strong>${joker.name}</strong><small>${joker.desc}</small>`;
+    jokersEl.appendChild(div);
+  }
+}
+
+function renderShop() {
+  const shopEl = $("shop");
+  shopEl.innerHTML = "";
+  for (const joker of state.shopOffers) {
+    const card = document.createElement("div");
+    card.className = "shop-card";
+    card.innerHTML = `<strong>${joker.name}</strong><small>${joker.desc}</small><small>价格：${joker.cost} 金币</small>`;
+    const btn = document.createElement("button");
+    btn.textContent = "购买";
+    btn.onclick = () => buyJoker(joker);
+    card.appendChild(btn);
+    shopEl.appendChild(card);
+  }
+}
+
+function log(text) {
+  logEl.textContent = `${text}\n${logEl.textContent}`.slice(0, 4500);
+}
+
+init();
