@@ -1,11 +1,8 @@
 :root {
   --bg: #10131c;
-  --panel: #1a2233;
   --text: #f0f3ff;
   --muted: #9aa7d0;
   --accent: #67d3ff;
-  --good: #7dfa93;
-  --warn: #ffd166;
 }
 
 * { box-sizing: border-box; }
@@ -23,7 +20,7 @@ header h1 { margin-bottom: 8px; }
 header p { color: var(--muted); margin-top: 0; }
 
 .status-panel, .controls, .log-wrap, section {
-  background: rgba(20, 28, 42, 0.88);
+  background: rgba(20, 28, 42, 0.9);
   border: 1px solid #2b3654;
   border-radius: 12px;
   padding: 12px 16px;
@@ -46,7 +43,6 @@ button {
   margin: 4px;
 }
 button:hover { border-color: var(--accent); }
-button:disabled { opacity: .45; cursor: not-allowed; }
 
 .card-row, .joker-row, .shop {
   display: flex;
@@ -56,16 +52,38 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 }
 
 .card, .joker-card, .shop-card {
-  min-width: 86px;
+  min-width: 90px;
   padding: 10px;
   border-radius: 10px;
   border: 2px solid #475270;
-  background: #f8fbff;
-  color: #0e1628;
   text-align: center;
   user-select: none;
 }
-.card.red { color: #c42424; }
+
+.card {
+  background: #f7f9ff;
+  color: #121a2f;
+}
+.card.spade {
+  background: #e8eefc;
+  border-color: #4667b2;
+  color: #102044;
+}
+.card.heart {
+  background: #ffe8ed;
+  border-color: #c93e62;
+  color: #a0163f;
+}
+.card.diamond {
+  background: #fff3e0;
+  border-color: #db8a2f;
+  color: #b36000;
+}
+.card.club {
+  background: #e9fff0;
+  border-color: #38a169;
+  color: #1f7a45;
+}
 .card.selected { outline: 3px solid var(--accent); }
 
 .joker-card, .shop-card {
@@ -79,20 +97,24 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   color: #ccb8f1;
   margin-top: 6px;
 }
-.shop-card button {
-  margin-top: 8px;
-  width: 100%;
-}
+.shop-card button { margin-top: 8px; width: 100%; }
 
 .deck-info { display: flex; gap: 18px; color: var(--muted); }
 
-#log {
+#log, #payoutText, #statsText {
   background: #0d1220;
   border-radius: 8px;
   border: 1px solid #2b3654;
-  min-height: 120px;
-  max-height: 280px;
   overflow: auto;
-  color: #bbfcd6;
   padding: 10px;
 }
+#log {
+  min-height: 120px;
+  max-height: 280px;
+  color: #bbfcd6;
+}
+#payoutText, #statsText {
+  white-space: pre-wrap;
+  color: #d5defc;
+}
+.hidden { display: none; }

@@ -23,10 +23,12 @@
     </section>
 
     <section class="controls">
-      <button id="drawBtn">抽牌到手牌</button>
       <button id="playBtn">打出选中牌</button>
       <button id="discardBtn">弃掉选中牌</button>
-      <button id="nextRoundBtn" disabled>进入下一回合</button>
+      <button id="sortRankBtn">手牌按点数排序</button>
+      <button id="sortSuitBtn">手牌按花色排序</button>
+      <button id="showPayoutBtn">查看牌型倍率</button>
+      <button id="showStatsBtn">查询剩余牌统计</button>
     </section>
 
     <section>
@@ -40,6 +42,16 @@
         <span>抽牌堆：<strong id="deckCount">52</strong></span>
         <span>弃牌堆：<strong id="discardPileCount">0</strong></span>
       </div>
+    </section>
+
+    <section id="payoutPanel" class="info-panel hidden">
+      <h2>牌型倍率速查（基础）</h2>
+      <pre id="payoutText"></pre>
+    </section>
+
+    <section id="statsPanel" class="info-panel hidden">
+      <h2>剩余牌统计</h2>
+      <pre id="statsText"></pre>
     </section>
 
     <section>
